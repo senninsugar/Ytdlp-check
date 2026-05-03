@@ -22,7 +22,7 @@ jobs:
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
           
           # テスト用の動画ID
-          TEST_ID="dQw4w9WgXcQ"
+          TEST_ID="BaW_jenozKc"
 
           # yudlp のチェック
           YUDLP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://yudlp.vercel.app/stream/$TEST_ID")
@@ -42,11 +42,13 @@ jobs:
             echo "sennin_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
-          # min のチェック (中身に ok があるか確認)
-          MIN_RESPONSE=$(curl -sL "https://min-tube2-api.vercel.app/status")
-          MIN_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L "https://min-tube2-api.vercel.app/status")
-          echo "min_code=$MIN_CODE" >> $GITHUB_OUTPUT
-          if echo "$MIN_RESPONSE" | grep -q "ok"; then
+          # min のチェック
+          MIN_RAW_RESPONSE=$(curl -s -L "https://min-tube2-api.vercel.app/status")
+          MIN_HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L "https://min-tube2-api.vercel.app/status")
+          echo "min_code=$MIN_HTTP_CODE" >> $GITHUB_OUTPUT
+          
+          # レスポンス内に "ok" (大文字小文字無視) が含まれるか確認
+          if echo "$MIN_RAW_RESPONSE" | grep -iq "ok"; then
             echo "min_result=稼働中" >> $GITHUB_OUTPUT
           else
             echo "min_result=ダウン中" >> $GITHUB_OUTPUT
