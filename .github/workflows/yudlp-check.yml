@@ -2,7 +2,7 @@ name: yudlp-status-monitor
 
 "on":
   schedule:
-    - cron: '*/20 * * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
           
           # テスト用の動画ID
-          TEST_ID="BaW_jenozKc"
+          TEST_ID="dQw4w9WgXcQ"
 
           # yudlp のチェック
           YUDLP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://yudlp.vercel.app/stream/$TEST_ID")
@@ -40,6 +40,16 @@ jobs:
             echo "sennin_result=稼働中" >> $GITHUB_OUTPUT
           else
             echo "sennin_result=ダウン中" >> $GITHUB_OUTPUT
+          fi
+
+          # min のチェック (中身に ok があるか確認)
+          MIN_RESPONSE=$(curl -sL "https://min-tube2-api.vercel.app/status")
+          MIN_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L "https://min-tube2-api.vercel.app/status")
+          echo "min_code=$MIN_CODE" >> $GITHUB_OUTPUT
+          if echo "$MIN_RESPONSE" | grep -q "ok"; then
+            echo "min_result=稼働中" >> $GITHUB_OUTPUT
+          else
+            echo "min_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
       - name: Update Logs and JSON
@@ -71,10 +81,22 @@ jobs:
           fi
           echo "| $TIMESTAMP | $SENNIN_RESULT | $SENNIN_CODE |" >> $SENNIN_LOG
 
+          # --- min 処理 ---
+          MIN_RESULT="${{ steps.check.outputs.min_result }}"
+          MIN_CODE="${{ steps.check.outputs.min_code }}"
+          echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$MIN_RESULT\", \"code\": $MIN_CODE}" > data/min.json
+          
+          MIN_LOG="logs/min.md"
+          if [ ! -f "$MIN_LOG" ]; then
+            echo "| 日時 (JST) | 状態 | ステータスコード |" > $MIN_LOG
+            echo "| --- | --- | --- |" >> $MIN_LOG
+          fi
+          echo "| $TIMESTAMP | $MIN_RESULT | $MIN_CODE |" >> $MIN_LOG
+
       - name: Commit and Push
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/yudlp.json logs/yudlp.md data/sennin.json logs/sennin.md
-          git commit -m "Update status: yudlp(${{ steps.check.outputs.yudlp_result }}), sennin(${{ steps.check.outputs.sennin_result }})" || exit 0
+          git add data/yudlp.json logs/yudlp.md data/sennin.json logs/sennin.md data/min.json logs/min.md
+          git commit -m "Update status: yudlp(${{ steps.check.outputs.yudlp_result }}), sennin(${{ steps.check.outputs.sennin_result }}), min(${{ steps.check.outputs.min_result }})" || exit 0
           git push
