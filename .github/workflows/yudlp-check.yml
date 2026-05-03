@@ -1,4 +1,4 @@
-## yudlp 稼働状況チェック (修正版)
+## yudlp 稼働状況チェック (完全修正版)
 
 `.github/workflows/yudlp-check.yml` として保存してください。
 
@@ -7,7 +7,6 @@ name: yudlp Status Monitor
 
 on:
   schedule:
-    # クォートで囲むことで構文エラーを回避
     - cron: '*/30 * * * *'
   workflow_dispatch:
 
@@ -16,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Request to yudlp
-        id: request
         run: |
           # テスト用の動画ID
           TEST_ID="BaW_jenozKc"
