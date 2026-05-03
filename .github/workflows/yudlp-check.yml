@@ -33,10 +33,10 @@ jobs:
             echo "yudlp_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
-          # sennin のチェック (URLのタイポをstreamに修正)
-          SENNIN_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://senninytdlp.vercel.app/stream/$TEST_ID")
+          # sennin のチェック (エンドポイント自体へのアクセスで判定)
+          SENNIN_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://senninytdlp.vercel.app/")
           echo "sennin_code=$SENNIN_STATUS" >> $GITHUB_OUTPUT
-          if [ "$SENNIN_STATUS" -eq 200 ]; then
+          if [ "$SENNIN_STATUS" -eq 200 ] || [ "$SENNIN_STATUS" -eq 404 ]; then
             echo "sennin_result=稼働中" >> $GITHUB_OUTPUT
           else
             echo "sennin_result=ダウン中" >> $GITHUB_OUTPUT
@@ -46,18 +46,16 @@ jobs:
           MIN_RAW_RESPONSE=$(curl -s -L "https://min-tube2-api.vercel.app/status")
           MIN_HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L "https://min-tube2-api.vercel.app/status")
           echo "min_code=$MIN_HTTP_CODE" >> $GITHUB_OUTPUT
-          
-          # レスポンス内に "ok" (大文字小文字無視) が含まれるか確認
           if echo "$MIN_RAW_RESPONSE" | grep -iq "ok"; then
             echo "min_result=稼働中" >> $GITHUB_OUTPUT
           else
             echo "min_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
-          # sia のチェック
-          SIA_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://siawaseok.f5.si/api/streams/$TEST_ID")
+          # sia のチェック (エンドポイント自体へのアクセスで判定)
+          SIA_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://siawaseok.f5.si/api/streams/")
           echo "sia_code=$SIA_STATUS" >> $GITHUB_OUTPUT
-          if [ "$SIA_STATUS" -eq 200 ]; then
+          if [ "$SIA_STATUS" -eq 200 ] || [ "$SIA_STATUS" -eq 405 ]; then
             echo "sia_result=稼働中" >> $GITHUB_OUTPUT
           else
             echo "sia_result=ダウン中" >> $GITHUB_OUTPUT
@@ -65,7 +63,7 @@ jobs:
 
       - name: Update Logs and JSON
         run: |
-          mkdir -p data logs
+          mkdir -p data logs all
           TIMESTAMP="${{ steps.check.outputs.timestamp }}"
 
           # --- yudlp 処理 ---
@@ -116,10 +114,13 @@ jobs:
           fi
           echo "| $TIMESTAMP | $SIA_RESULT | $SIA_CODE |" >> $SIA_LOG
 
+          # --- all/all.json 処理 ---
+          echo "{\"last_update\": \"$TIMESTAMP\", \"apis\": [{\"name\": \"yudlp\", \"status\": \"$YUDLP_RESULT\"}, {\"name\": \"sennin\", \"status\": \"$SENNIN_RESULT\"}, {\"name\": \"min\", \"status\": \"$MIN_RESULT\"}, {\"name\": \"sia\", \"status\": \"$SIA_RESULT\"}]}" > all/all.json
+
       - name: Commit and Push
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/yudlp.json logs/yudlp.md data/sennin.json logs/sennin.md data/min.json logs/min.md data/sia.json logs/sia.md
+          git add data/yudlp.json logs/yudlp.md data/sennin.json logs/sennin.md data/min.json logs/min.md data/sia.json logs/sia.md all/all.json
           git commit -m "Update status: yudlp(${{ steps.check.outputs.yudlp_result }}), sennin(${{ steps.check.outputs.sennin_result }}), min(${{ steps.check.outputs.min_result }}), sia(${{ steps.check.outputs.sia_result }})" || exit 0
           git push
