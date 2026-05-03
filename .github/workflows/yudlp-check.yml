@@ -1,0 +1,39 @@
+## yudlp 稼働状況チェック設定
+
+以下のコードをリポジトリの `.github/workflows/yudlp-check.yml` に配置してください。
+
+```yaml
+name: yudlp Status Monitor
+
+on:
+  schedule:
+    # 30分ごとに実行
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # 手動で実行したい場合用
+
+jobs:
+  check-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Request to yudlp
+        id: request
+        run: |
+          # 実際の動画IDを指定してリクエストを送信
+          # 例として YouTube でよく使われる ID を指定しています
+          TEST_ID="BaW_jenozKc"
+          TARGET_URL="[https://yudlp.vercel.app/stream/$TEST_ID](https://yudlp.vercel.app/stream/$TEST_ID)"
+          
+          echo "Checking URL: $TARGET_URL"
+          
+          # ステータスコードのみを取得
+          RESPONSE=$(curl -o /dev/null -s -w "%{http_code}" -L "$TARGET_URL")
+          
+          echo "Status Code: $RESPONSE"
+          
+          # 200 (OK) 以外の場合はエラーとして終了
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "Result: Online"
+          else
+            echo "Result: Offline or Error"
+            exit 1
+          fi
