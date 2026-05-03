@@ -1,4 +1,4 @@
-## yudlp 稼働状況チェック (完全修正版)
+## yudlp 稼働状況チェック (構文修正版)
 
 `.github/workflows/yudlp-check.yml` として保存してください。
 
@@ -16,13 +16,11 @@ jobs:
     steps:
       - name: Send Request to yudlp
         run: |
-          # テスト用の動画ID
           TEST_ID="BaW_jenozKc"
           TARGET_URL="[https://yudlp.vercel.app/stream/$TEST_ID](https://yudlp.vercel.app/stream/$TEST_ID)"
           
           echo "Checking URL: $TARGET_URL"
           
-          # HTTPステータスコードを取得
           RESPONSE=$(curl -o /dev/null -s -w "%{http_code}" -L "$TARGET_URL")
           
           echo "Status Code: $RESPONSE"
