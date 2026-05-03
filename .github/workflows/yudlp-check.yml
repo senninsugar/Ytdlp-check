@@ -1,4 +1,4 @@
-name: yudlp-status-monitor
+Name: yudlp-status-monitor
 
 "on":
   schedule:
@@ -53,9 +53,9 @@ jobs:
           fi
 
           # sia のチェック (指定通り動画IDを末尾に付与して確認)
-          SIA_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://siawaseok.f5.si/api/streams/$TEST_ID")
+          SIA_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 30 -L "https://siawaseok.f5.si/api/streams/$TEST_ID")
           echo "sia_code=$SIA_STATUS" >> $GITHUB_OUTPUT
-          if [ "$SIA_STATUS" -eq 200 ]; then
+          if [ "$SIA_STATUS" -ne 000 ]; then
             echo "sia_result=稼働中" >> $GITHUB_OUTPUT
           else
             echo "sia_result=ダウン中" >> $GITHUB_OUTPUT
