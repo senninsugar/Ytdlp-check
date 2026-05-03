@@ -8,14 +8,52 @@ name: yudlp-status-monitor
 jobs:
   check-api:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Send Request
+        id: check
         run: |
           STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://yudlp.vercel.app/stream/BaW_jenozKc")
           echo "Status: $STATUS"
+          TIMESTAMP=$(date -u -d "+9 hours" '+%Y-%m-%d %H:%M:%S')
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "status_code=$STATUS" >> $GITHUB_OUTPUT
+          
           if [ "$STATUS" -eq 200 ]; then
             echo "API is up"
+            echo "result=稼働中" >> $GITHUB_OUTPUT
           else
             echo "API is down"
-            exit 1
+            echo "result=ダウン中" >> $GITHUB_OUTPUT
           fi
+
+      - name: Update Logs and JSON
+        run: |
+          mkdir -p data logs
+          TIMESTAMP="${{ steps.check.outputs.timestamp }}"
+          RESULT="${{ steps.check.outputs.result }}"
+          CODE="${{ steps.check.outputs.status_code }}"
+
+          # JSONの更新
+          echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$RESULT\", \"code\": $CODE}" > data/yudlp.json
+
+          # Markdownログの更新 (表形式)
+          LOG_FILE="logs/yudlp.md"
+          if [ ! -f "$LOG_FILE" ]; then
+            echo "| 日時 (JST) | 状態 | ステータスコード |" > $LOG_FILE
+            echo "| --- | --- | --- |" >> $LOG_FILE
+          fi
+          # 最新を一番上に追加したい場合は工夫が必要ですが、通常追記（末尾）にします
+          echo "| $TIMESTAMP | $RESULT | $CODE |" >> $LOG_FILE
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/yudlp.json logs/yudlp.md
+          git commit -m "Update yudlp status: ${{ steps.check.outputs.result }}" || exit 0
+          git push
