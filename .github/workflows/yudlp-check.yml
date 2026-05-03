@@ -1,7 +1,3 @@
-## yudlp 稼働状況チェック (再修正版)
-
-`.github/workflows/yudlp-check.yml` として保存してください。
-
 ```yaml
 name: yudlp-status-monitor
 
