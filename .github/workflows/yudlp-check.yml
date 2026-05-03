@@ -2,7 +2,7 @@ name: yudlp-status-monitor
 
 "on":
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/20 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -17,43 +17,64 @@ jobs:
       - name: Send Request
         id: check
         run: |
-          STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://yudlp.vercel.app/stream/BaW_jenozKc")
-          echo "Status: $STATUS"
+          # タイムスタンプ（JST）の生成
           TIMESTAMP=$(date -u -d "+9 hours" '+%Y-%m-%d %H:%M:%S')
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
-          echo "status_code=$STATUS" >> $GITHUB_OUTPUT
           
-          if [ "$STATUS" -eq 200 ]; then
-            echo "API is up"
-            echo "result=稼働中" >> $GITHUB_OUTPUT
+          # テスト用の動画ID
+          TEST_ID="BaW_jenozKc"
+
+          # yudlp のチェック
+          YUDLP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://yudlp.vercel.app/stream/$TEST_ID")
+          echo "yudlp_code=$YUDLP_STATUS" >> $GITHUB_OUTPUT
+          if [ "$YUDLP_STATUS" -eq 200 ]; then
+            echo "yudlp_result=稼働中" >> $GITHUB_OUTPUT
           else
-            echo "API is down"
-            echo "result=ダウン中" >> $GITHUB_OUTPUT
+            echo "yudlp_result=ダウン中" >> $GITHUB_OUTPUT
+          fi
+
+          # sennin のチェック
+          SENNIN_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://senninytdlp.vercel.app/stram/$TEST_ID")
+          echo "sennin_code=$SENNIN_STATUS" >> $GITHUB_OUTPUT
+          if [ "$SENNIN_STATUS" -eq 200 ]; then
+            echo "sennin_result=稼働中" >> $GITHUB_OUTPUT
+          else
+            echo "sennin_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
       - name: Update Logs and JSON
         run: |
           mkdir -p data logs
           TIMESTAMP="${{ steps.check.outputs.timestamp }}"
-          RESULT="${{ steps.check.outputs.result }}"
-          CODE="${{ steps.check.outputs.status_code }}"
 
-          # JSONの更新
-          echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$RESULT\", \"code\": $CODE}" > data/yudlp.json
-
-          # Markdownログの更新 (表形式)
-          LOG_FILE="logs/yudlp.md"
-          if [ ! -f "$LOG_FILE" ]; then
-            echo "| 日時 (JST) | 状態 | ステータスコード |" > $LOG_FILE
-            echo "| --- | --- | --- |" >> $LOG_FILE
+          # --- yudlp 処理 ---
+          YUDLP_RESULT="${{ steps.check.outputs.yudlp_result }}"
+          YUDLP_CODE="${{ steps.check.outputs.yudlp_code }}"
+          echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$YUDLP_RESULT\", \"code\": $YUDLP_CODE}" > data/yudlp.json
+          
+          YUDLP_LOG="logs/yudlp.md"
+          if [ ! -f "$YUDLP_LOG" ]; then
+            echo "| 日時 (JST) | 状態 | ステータスコード |" > $YUDLP_LOG
+            echo "| --- | --- | --- |" >> $YUDLP_LOG
           fi
-          # 最新を一番上に追加したい場合は工夫が必要ですが、通常追記（末尾）にします
-          echo "| $TIMESTAMP | $RESULT | $CODE |" >> $LOG_FILE
+          echo "| $TIMESTAMP | $YUDLP_RESULT | $YUDLP_CODE |" >> $YUDLP_LOG
+
+          # --- sennin 処理 ---
+          SENNIN_RESULT="${{ steps.check.outputs.sennin_result }}"
+          SENNIN_CODE="${{ steps.check.outputs.sennin_code }}"
+          echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$SENNIN_RESULT\", \"code\": $SENNIN_CODE}" > data/sennin.json
+          
+          SENNIN_LOG="logs/sennin.md"
+          if [ ! -f "$SENNIN_LOG" ]; then
+            echo "| 日時 (JST) | 状態 | ステータスコード |" > $SENNIN_LOG
+            echo "| --- | --- | --- |" >> $SENNIN_LOG
+          fi
+          echo "| $TIMESTAMP | $SENNIN_RESULT | $SENNIN_CODE |" >> $SENNIN_LOG
 
       - name: Commit and Push
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/yudlp.json logs/yudlp.md
-          git commit -m "Update yudlp status: ${{ steps.check.outputs.result }}" || exit 0
+          git add data/yudlp.json logs/yudlp.md data/sennin.json logs/sennin.md
+          git commit -m "Update status: yudlp(${{ steps.check.outputs.yudlp_result }}), sennin(${{ steps.check.outputs.sennin_result }})" || exit 0
           git push
