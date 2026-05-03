@@ -1,33 +1,26 @@
-## yudlp 稼働状況チェック (構文修正版)
+## yudlp 稼働状況チェック (再修正版)
 
 `.github/workflows/yudlp-check.yml` として保存してください。
 
 ```yaml
-name: yudlp Status Monitor
+name: yudlp-status-monitor
 
 on:
   schedule:
     - cron: '*/30 * * * *'
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   check-api:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Request to yudlp
+      - name: Check Endpoint
         run: |
-          TEST_ID="BaW_jenozKc"
-          TARGET_URL="[https://yudlp.vercel.app/stream/$TEST_ID](https://yudlp.vercel.app/stream/$TEST_ID)"
-          
-          echo "Checking URL: $TARGET_URL"
-          
-          RESPONSE=$(curl -o /dev/null -s -w "%{http_code}" -L "$TARGET_URL")
-          
-          echo "Status Code: $RESPONSE"
-          
-          if [ "$RESPONSE" -eq 200 ]; then
-            echo "Result: Online"
+          # 確実に存在する動画IDでテスト
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "[https://yudlp.vercel.app/stream/BaW_jenozKc](https://yudlp.vercel.app/stream/BaW_jenozKc)")
+          echo "HTTP Status: $STATUS"
+          if [ "$STATUS" -eq 200 ]; then
+            exit 0
           else
-            echo "Result: Offline or Error ($RESPONSE)"
             exit 1
           fi
