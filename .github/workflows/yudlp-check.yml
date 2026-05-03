@@ -1,22 +1,21 @@
-```yaml
 name: yudlp-status-monitor
 
-on:
+"on":
   schedule:
     - cron: '*/30 * * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   check-api:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Endpoint
+      - name: Send Request
         run: |
-          # 確実に存在する動画IDでテスト
-          STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "[https://yudlp.vercel.app/stream/BaW_jenozKc](https://yudlp.vercel.app/stream/BaW_jenozKc)")
-          echo "HTTP Status: $STATUS"
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://yudlp.vercel.app/stream/BaW_jenozKc")
+          echo "Status: $STATUS"
           if [ "$STATUS" -eq 200 ]; then
-            exit 0
+            echo "API is up"
           else
+            echo "API is down"
             exit 1
           fi
