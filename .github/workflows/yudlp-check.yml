@@ -33,8 +33,8 @@ jobs:
             echo "yudlp_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
-          # sennin のチェック
-          SENNIN_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://senninytdlp.vercel.app/stram/$TEST_ID")
+          # sennin のチェック (URLのタイポをstreamに修正)
+          SENNIN_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://senninytdlp.vercel.app/stream/$TEST_ID")
           echo "sennin_code=$SENNIN_STATUS" >> $GITHUB_OUTPUT
           if [ "$SENNIN_STATUS" -eq 200 ]; then
             echo "sennin_result=稼働中" >> $GITHUB_OUTPUT
@@ -52,6 +52,15 @@ jobs:
             echo "min_result=稼働中" >> $GITHUB_OUTPUT
           else
             echo "min_result=ダウン中" >> $GITHUB_OUTPUT
+          fi
+
+          # sia のチェック
+          SIA_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://siawaseok.f5.si/api/streams/$TEST_ID")
+          echo "sia_code=$SIA_STATUS" >> $GITHUB_OUTPUT
+          if [ "$SIA_STATUS" -eq 200 ]; then
+            echo "sia_result=稼働中" >> $GITHUB_OUTPUT
+          else
+            echo "sia_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
       - name: Update Logs and JSON
@@ -95,10 +104,22 @@ jobs:
           fi
           echo "| $TIMESTAMP | $MIN_RESULT | $MIN_CODE |" >> $MIN_LOG
 
+          # --- sia 処理 ---
+          SIA_RESULT="${{ steps.check.outputs.sia_result }}"
+          SIA_CODE="${{ steps.check.outputs.sia_code }}"
+          echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$SIA_RESULT\", \"code\": $SIA_CODE}" > data/sia.json
+          
+          SIA_LOG="logs/sia.md"
+          if [ ! -f "$SIA_LOG" ]; then
+            echo "| 日時 (JST) | 状態 | ステータスコード |" > $SIA_LOG
+            echo "| --- | --- | --- |" >> $SIA_LOG
+          fi
+          echo "| $TIMESTAMP | $SIA_RESULT | $SIA_CODE |" >> $SIA_LOG
+
       - name: Commit and Push
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/yudlp.json logs/yudlp.md data/sennin.json logs/sennin.md data/min.json logs/min.md
-          git commit -m "Update status: yudlp(${{ steps.check.outputs.yudlp_result }}), sennin(${{ steps.check.outputs.sennin_result }}), min(${{ steps.check.outputs.min_result }})" || exit 0
+          git add data/yudlp.json logs/yudlp.md data/sennin.json logs/sennin.md data/min.json logs/min.md data/sia.json logs/sia.md
+          git commit -m "Update status: yudlp(${{ steps.check.outputs.yudlp_result }}), sennin(${{ steps.check.outputs.sennin_result }}), min(${{ steps.check.outputs.min_result }}), sia(${{ steps.check.outputs.sia_result }})" || exit 0
           git push
