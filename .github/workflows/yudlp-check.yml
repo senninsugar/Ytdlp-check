@@ -1,4 +1,4 @@
-name: yudlp-status-monitor
+Name: yudlp-status-monitor
 
 "on":
   schedule:
@@ -17,14 +17,11 @@ jobs:
       - name: Send Request
         id: check
         run: |
-          # タイムスタンプ（JST）の生成
           TIMESTAMP=$(date -u -d "+9 hours" '+%Y-%m-%d %H:%M:%S')
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
           
-          # テスト用の動画ID
           TEST_ID="BaW_jenozKc"
 
-          # yudlp のチェック
           YUDLP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://yudlp.vercel.app/stream/$TEST_ID")
           echo "yudlp_code=$YUDLP_STATUS" >> $GITHUB_OUTPUT
           if [ "$YUDLP_STATUS" -eq 200 ]; then
@@ -33,7 +30,6 @@ jobs:
             echo "yudlp_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
-          # sennin のチェック (エンドポイント自体へのアクセスで判定)
           SENNIN_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "https://senninytdlp.vercel.app/")
           echo "sennin_code=$SENNIN_STATUS" >> $GITHUB_OUTPUT
           if [ "$SENNIN_STATUS" -eq 200 ] || [ "$SENNIN_STATUS" -eq 404 ]; then
@@ -42,7 +38,6 @@ jobs:
             echo "sennin_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
-          # min のチェック
           MIN_RAW_RESPONSE=$(curl -s -L "https://min-tube2-api.vercel.app/status")
           MIN_HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L "https://min-tube2-api.vercel.app/status")
           echo "min_code=$MIN_HTTP_CODE" >> $GITHUB_OUTPUT
@@ -52,7 +47,6 @@ jobs:
             echo "min_result=ダウン中" >> $GITHUB_OUTPUT
           fi
 
-          # sia のチェック (指定通り動画IDを末尾に付与して確認)
           SIA_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 30 -L "https://siawaseok.f5.si/api/streams/$TEST_ID")
           echo "sia_code=$SIA_STATUS" >> $GITHUB_OUTPUT
           if [ "$SIA_STATUS" -ne 000 ]; then
@@ -66,7 +60,6 @@ jobs:
           mkdir -p data logs all
           TIMESTAMP="${{ steps.check.outputs.timestamp }}"
 
-          # --- yudlp 処理 ---
           YUDLP_RESULT="${{ steps.check.outputs.yudlp_result }}"
           YUDLP_CODE="${{ steps.check.outputs.yudlp_code }}"
           echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$YUDLP_RESULT\", \"code\": $YUDLP_CODE}" > data/yudlp.json
@@ -78,7 +71,6 @@ jobs:
           fi
           echo "| $TIMESTAMP | $YUDLP_RESULT | $YUDLP_CODE |" >> $YUDLP_LOG
 
-          # --- sennin 処理 ---
           SENNIN_RESULT="${{ steps.check.outputs.sennin_result }}"
           SENNIN_CODE="${{ steps.check.outputs.sennin_code }}"
           echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$SENNIN_RESULT\", \"code\": $SENNIN_CODE}" > data/sennin.json
@@ -90,7 +82,6 @@ jobs:
           fi
           echo "| $TIMESTAMP | $SENNIN_RESULT | $SENNIN_CODE |" >> $SENNIN_LOG
 
-          # --- min 処理 ---
           MIN_RESULT="${{ steps.check.outputs.min_result }}"
           MIN_CODE="${{ steps.check.outputs.min_code }}"
           echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$MIN_RESULT\", \"code\": $MIN_CODE}" > data/min.json
@@ -102,7 +93,6 @@ jobs:
           fi
           echo "| $TIMESTAMP | $MIN_RESULT | $MIN_CODE |" >> $MIN_LOG
 
-          # --- sia 処理 ---
           SIA_RESULT="${{ steps.check.outputs.sia_result }}"
           SIA_CODE="${{ steps.check.outputs.sia_code }}"
           echo "{\"last_check\": \"$TIMESTAMP\", \"status\": \"$SIA_RESULT\", \"code\": $SIA_CODE}" > data/sia.json
@@ -114,7 +104,6 @@ jobs:
           fi
           echo "| $TIMESTAMP | $SIA_RESULT | $SIA_CODE |" >> $SIA_LOG
 
-          # --- all/all.json 処理 ---
           echo "{\"last_update\": \"$TIMESTAMP\", \"apis\": [{\"name\": \"yudlp\", \"status\": \"$YUDLP_RESULT\"}, {\"name\": \"sennin\", \"status\": \"$SENNIN_RESULT\"}, {\"name\": \"min\", \"status\": \"$MIN_RESULT\"}, {\"name\": \"sia\", \"status\": \"$SIA_RESULT\"}]}" > all/all.json
 
       - name: Commit and Push
