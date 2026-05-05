@@ -1,4 +1,4 @@
-Name: yudlp-status-monitor
+name: yudlp-status-monitor
 
 "on":
   schedule:
